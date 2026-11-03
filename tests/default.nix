@@ -231,9 +231,17 @@ in
         ];
       }
       ''
-        export HOME=$TMPDIR/home LUA_INIT=@${../nix/lib/tmpname.lua} LUAROCKS_CONFIG=${../nix/lib/publish-config.lua}
+        export HOME=$TMPDIR/home LUA_INIT=@${../nix/lib/tmpname.lua}
         mkdir -p $HOME
+        # luarocks upload writes upload_config.lua beside the configuration,
+        # which a build outside the sandbox could then write into /nix/store.
+        cp ${../nix/lib/publish-config.lua} $HOME/config.lua
+        export LUAROCKS_CONFIG=$HOME/config.lua
         python3 ${./fake-luarocks-server.py} $TMPDIR/uploads $TMPDIR/port &
+        # Darwin builds have no PID namespace, so a server left running
+        # would keep the build's log open after the builder exits.
+        server=$!
+        trap 'kill $server' EXIT
         while [ ! -f $TMPDIR/port ]; do sleep 0.1; done
         cp -r ${./fixtures/app} src
         cd src

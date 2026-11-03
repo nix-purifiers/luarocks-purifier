@@ -174,6 +174,14 @@ let
       )
     );
 
+  # LuaRocks compiles and links C code with CC, which stdenv sets to its
+  # compiler, except on macOS, where it runs `gcc` whatever CC says, and the
+  # darwin stdenv has no gcc.
+  darwinVariables = lib.optionalString stdenv.hostPlatform.isDarwin ''
+    CC = "$CC",
+    LD = "$CC",
+  '';
+
   # The LuaRocks configuration of a sandboxed run, with the tree and the
   # rocks servers given as shell words.
   writeConfig = ''
@@ -195,7 +203,7 @@ let
       SVN = "${luarocks-purifier-shims}/bin/luarocks-purifier-svn",
       CVS = "${luarocks-purifier-shims}/bin/luarocks-purifier-cvs",
       SSCM = "${luarocks-purifier-shims}/bin/luarocks-purifier-sscm",
-    }
+    ${darwinVariables}}
     EOF
     }
     export HOME=$TMPDIR/home

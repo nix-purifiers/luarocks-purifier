@@ -274,8 +274,8 @@ Limits:
 - A CVS source without a tag stops the lock run, because nothing would pin
   its content.
 - CVS sources lock and build on x86_64-linux only, because the CVS package
-  of nixpkgs aborts on aarch64-linux, both in the lock run and in
-  `fetchcvs`.
+  of nixpkgs aborts on aarch64-linux and aarch64-darwin, both in the lock
+  run and in `fetchcvs`.
 - A rock whose build downloads files itself, past LuaRocks (for instance
   with a CMake `ExternalProject`), fails in the sandbox: LuaRocks does not
   see those downloads, so the lock run cannot record them.

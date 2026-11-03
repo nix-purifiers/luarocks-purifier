@@ -32,7 +32,10 @@
 set -euo pipefail
 
 repo=$(pwd)
-work=$(mktemp -d "${TMPDIR:-/tmp}/luarocks-purifier-test.XXXXXX")
+# macOS sets TMPDIR with a trailing slash, and a path with "//" in it is not
+# a Nix path.
+tmp=${TMPDIR:-/tmp}
+work=$(mktemp -d "${tmp%/}/luarocks-purifier-test.XXXXXX")
 trap 'chmod -R u+w "$work"; rm -rf "$work"' EXIT
 system=$(nix eval --raw --impure --expr builtins.currentSystem)
 
@@ -89,8 +92,10 @@ conformance-update() {
   fixture app update
   cd "$work/update"
   # argparse may be any version from 0.7.1, and luarocks.lock pins the
-  # older of the two that luarocks.org serves for Lua 5.4.
-  sed -i 's/"argparse == 0.7.1"/"argparse >= 0.7.1"/' app-0.1-1.rockspec
+  # older of the two that luarocks.org serves for Lua 5.4. The backup
+  # suffix makes -i work with the BSD sed of macOS too.
+  sed -i.orig 's/"argparse == 0.7.1"/"argparse >= 0.7.1"/' app-0.1-1.rockspec
+  rm app-0.1-1.rockspec.orig
   cat > luarocks.lock <<'EOF'
 return {
    dependencies = {
@@ -157,8 +162,14 @@ interactive() {
       exit 1
     fi
     # The C module records where its C library is, whichever compiler built
-    # it, so it loads outside the shell of the lock run.
-    readelf -d lua_modules/lib/lua/5.4/zlib.so | grep -E 'R(UN)?PATH' | grep -q luarocks-purifier-external
+    # it, so it loads outside the shell of the lock run. Linux records the
+    # directory in the RPATH; macOS records the library by its full path,
+    # which for a nixpkgs library is in the Nix store.
+    if [ "$(uname)" = Darwin ]; then
+      objdump -P load lua_modules/lib/lua/5.4/zlib.so | grep -q 'name: /nix/store/.*/libz'
+    else
+      readelf -d lua_modules/lib/lua/5.4/zlib.so | grep -E 'R(UN)?PATH' | grep -q luarocks-purifier-external
+    fi
     output=$(lua_modules/bin/app "the cat and the hat")
     echo "$output" | grep -q 'the = 2'
   )
@@ -246,14 +257,18 @@ vcs() {
   step "lock run of Mercurial, Subversion and CVS sources"
   local vcs=$work/vcs-repos
   mkdir -p "$vcs"
-  # nixpkgs' CVS aborts (SIGABRT) on a tagged export on aarch64-linux, so the
-  # lock run cannot export a CVS source there (see the README). The vcs-runs
-  # flake check covers how a CVS checkout is served on both systems.
+  # nixpkgs' CVS aborts (SIGABRT, and at times SIGSEGV on aarch64-darwin,
+  # whose `uname -m` is arm64) on a tagged export on aarch64-linux and
+  # aarch64-darwin, so the lock run cannot export a CVS source there (see
+  # the README). The vcs-runs flake check covers how a CVS checkout is
+  # served on every system.
   local rocks="hgrock svnrock cvsrock"
-  if [ "$(uname -m)" = aarch64 ]; then
-    rocks="hgrock svnrock"
-    echo "skipping the CVS source: nixpkgs' CVS aborts on aarch64-linux"
-  fi
+  case $(uname -m) in
+    aarch64 | arm64)
+      rocks="hgrock svnrock"
+      echo "skipping the CVS source: nixpkgs' CVS aborts on aarch64"
+      ;;
+  esac
   (
     # A Mercurial repository with the tag 1.0.
     mkdir "$vcs/hgrock" && cd "$vcs/hgrock"
