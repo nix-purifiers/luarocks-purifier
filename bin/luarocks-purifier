@@ -28,7 +28,7 @@
 # Options of lock (the lockfile records them, and a later lock reuses them
 # unless they are given again):
 #
-#   --lua VERSION         the Lua to lock for: 5.1, 5.2, 5.3, 5.4 or luajit
+#   --lua VERSION         the Lua to lock for: 5.1, 5.2, 5.3, 5.4, 5.5 or luajit
 #   --server URL          a rocks server to search before the default ones
 #   --only-server URL     search only this rocks server (repeatable)
 #   --external-dep ATTR   a nixpkgs attribute that provides a C library a rock
@@ -70,7 +70,7 @@ lock_path_given = None
 tool_lock_given = None
 STATE_DIR = ".luarocks-purifier"
 TOOLS = ("curl", "git", "hg", "svn", "cvs", "sscm")
-LUA_VERSIONS = ("5.1", "5.2", "5.3", "5.4", "luajit")
+LUA_VERSIONS = ("5.1", "5.2", "5.3", "5.4", "5.5", "luajit")
 DEFAULT_LUA = "5.4"
 
 # LuaRocks' own default: luarocks.org and its two mirrors, one group.

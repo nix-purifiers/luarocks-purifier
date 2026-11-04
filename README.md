@@ -33,6 +33,22 @@ and runs the ordinary tool with impure resolution.
 For persistent use, add these packages through your usual Nix configuration.
 
 
+## Project Lua versions
+
+`luarocks-purifier lock --lua VERSION` selects `5.1`, `5.2`, `5.3`,
+`5.4`, `5.5` or `luajit`. The lock records that selection, and subsequent
+prefetch, native commands, sandboxed builds and source-rock publication use
+its LuaRocks and Lua ABI. The purifier helper runs separately on Python.
+
+The SDK regression matrix exercises the pinned Lua 5.1.5, 5.2.4, 5.3.6,
+5.4.9 and 5.5.1 packages and LuaJIT 2.1.1785763465, each with LuaRocks
+3.13.0-1. It covers actual native resolution of a dependency, repeatable
+capture, offline make/test, a compiled C module, sandboxed build/test/source
+rock, and ordinary LuaRocks installation and execution of that source rock.
+Linux x86_64 and ARM CI run each point. These are exact runtime/manager
+pairs; they do not establish every release between them or older LuaRocks
+APIs. Lua versions before 5.1 and other LuaRocks releases need separate work.
+
 ## Development loop
 
 LuaRocks has no plugin mechanism, so luarocks-purifier is a command that

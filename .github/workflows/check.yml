@@ -19,6 +19,22 @@ permissions:
   contents: read
 
 jobs:
+  sdk-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        lua: ['5.1', '5.2', '5.3', '5.4', '5.5', luajit]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Native resolution, C module, offline and pure builds, ordinary source-rock consumer
+        run: |
+          tools="$(nix build --no-link --print-out-paths .#cli)"
+          nix shell nixpkgs#python3 -c python3 tests/sdk-native.py "$tools" '${{ matrix.lua }}'
+
   checks:
     strategy:
       fail-fast: false
