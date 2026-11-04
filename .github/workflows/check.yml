@@ -34,6 +34,14 @@ jobs:
         run: |
           tools="$(nix build --no-link --print-out-paths .#cli)"
           nix shell nixpkgs#python3 -c python3 tests/sdk-native.py "$tools" '${{ matrix.lua }}'
+          if [ '${{ matrix.lua }}' = '5.1' ]; then
+            nix shell nixpkgs#python3 -c python3 tests/capture-manager.py "$tools"
+          fi
+      - name: Native LuaRocks 2.2 metadata, repeated capture and update
+        if: matrix.lua == '5.1' && runner.arch == 'X64'
+        run: |
+          tools="$(nix build --no-link --print-out-paths .#checks.x86_64-linux.legacy-manager-tools)"
+          nix shell nixpkgs#python3 -c python3 tests/capture-manager.py "$tools"
 
   checks:
     strategy:
