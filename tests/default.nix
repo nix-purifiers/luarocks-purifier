@@ -303,5 +303,8 @@ in
 
 // lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {
   # Capture runs on the host: it asks Nix to provide libc before native make.
-  legacy-manager-tools = import ./historical-manager.nix { inherit pkgs cli; };
+  legacy-manager-tools = import ./historical-manager.nix {
+    inherit pkgs;
+    scope = (pkgs.extend overlay).luarocks-purifier;
+  };
 }

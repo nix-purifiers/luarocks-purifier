@@ -12,10 +12,12 @@
   # The shared nix-purifiers library the CLI was built with, as a flake
   # reference to its locked source.
   purifierFlake,
+  sdkFile ? null,
 }:
 let
   pkgs = import nixpkgs { };
   buildLuarocksProject = pkgs.callPackage ./build-luarocks-project.nix {
+    luaSDKs = if sdkFile == null then import ./lua-sdks.nix { inherit pkgs; } else import sdkFile;
     shims = pkgs.callPackage ../../pkgs/shims { };
     inherit ((builtins.getFlake purifierFlake).lib) purifier;
   };

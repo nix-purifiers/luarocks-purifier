@@ -10,6 +10,8 @@
 {
   lib,
   pkgs,
+  luaSDKs ? import ../../nix/lib/lua-sdks.nix { inherit pkgs; },
+  writeText,
   stdenvNoCC,
   makeWrapper,
   python3Minimal,
@@ -47,11 +49,15 @@ let
       ../../version.txt
     ];
   };
-  luarocks = lib.mapAttrs (_: lua: {
-    luarocks = "${lua.pkgs.luarocks}";
-    lua = lib.getExe lua;
-    version = lua.pkgs.luarocks.version;
-  }) (import ../../nix/lib/lua.nix { inherit pkgs; });
+  luarocks = lib.mapAttrs (name: sdk: {
+    luarocks = "${sdk.luarocks}";
+    lua = "${sdk.lua}/bin/${sdk.luaExecutable or (if name == "luajit" then "luajit" else "lua")}";
+    version =
+      sdk.luarocksVersion or (sdk.luarocks.version or (builtins.parseDrvName sdk.luarocks.name).version);
+  }) luaSDKs;
+  sdkReference = writeText "lua-project-sdks.nix" (
+    import ../../nix/lib/sdk-matrix-expression.nix luaSDKs
+  );
 in
 stdenvNoCC.mkDerivation {
   pname = "luarocks-purifier";
@@ -63,8 +69,11 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
     # The user's PATH comes first, for the user's nix and compilers.
+    mkdir -p "$out/nix-support"
+    ln -s ${sdkReference} "$out/nix-support/project-lua-sdks.nix"
     makeWrapper ${python3Minimal}/bin/python3 "$out/bin/luarocks-purifier" \
       --add-flags "${source}/bin/luarocks-purifier" \
+      --set LUAROCKS_PURIFIER_SDKS ${sdkReference} \
       --set LUAROCKS_PURIFIER_LIB ${source}/nix/lib \
       --set LUAROCKS_PURIFIER_NIXPKGS ${path} \
       --set LUAROCKS_PURIFIER_SHIMS ${shims}/bin \
