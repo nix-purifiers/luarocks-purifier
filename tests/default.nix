@@ -298,4 +298,10 @@ in
       grep -q '0 warnings / 0 errors' $TMPDIR/report
       touch $out
     '';
+
+}
+
+// lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {
+  # Capture runs on the host: it asks Nix to provide libc before native make.
+  legacy-manager-tools = import ./historical-manager.nix { inherit pkgs cli; };
 }

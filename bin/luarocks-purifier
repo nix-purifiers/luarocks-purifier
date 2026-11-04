@@ -443,7 +443,7 @@ def luarocks_env(lua, config, home, tmp, externals):
             dirs.append(env[var])
         if dirs:
             env[var] = ":".join(dirs)
-    for v in ("5_1", "5_2", "5_3", "5_4"):
+    for v in ("5_1", "5_2", "5_3", "5_4", "5_5"):
         env.pop(f"LUA_INIT_{v}", None)
     # The luarocks wrapper of nixpkgs adds LuaRocks' own module directories
     # to LUA_PATH. When LUA_PATH was unset, the result lacks the `;;` that
@@ -632,10 +632,17 @@ def lua_abi(lua):
 # The files a rock installed into a tree, read from its rock_manifest: `bin`
 # (commands), `lua` (Lua modules) and `lib` (C modules), each a sorted list
 # of paths relative to that directory of the tree.
-def installed_outputs(lua_bin, tree, lua, package, version):
-    manifest = os.path.join(
-        tree, "lib", "luarocks", f"rocks-{lua_abi(lua)}", package.lower(), version, "rock_manifest"
-    )
+def installed_outputs(lua_bin, tree, package, version, luarocks_bin, environment):
+    directory = subprocess.check_output(
+        [luarocks_bin, "show", "--rock-dir", "--tree=" + tree, package, version],
+        env=environment, text=True,
+    ).strip()
+    if not os.path.isabs(directory):
+        fail(f"native LuaRocks reported a relative rock directory: {directory}")
+    directory = os.path.realpath(directory)
+    if os.path.commonpath([os.path.realpath(tree), directory]) != os.path.realpath(tree):
+        fail(f"native LuaRocks reported a rock directory outside its private tree: {directory}")
+    manifest = os.path.join(directory, "rock_manifest")
     if not os.path.isfile(manifest):
         fail(f"the lock run installed no rock_manifest for {package} {version}")
     script = (
@@ -792,16 +799,16 @@ def write_luarocks_lock(path, pins):
 
 
 # The rocks installed in a LuaRocks tree, as a map from name to version.
-def installed_rocks(tree, lua):
-    rocks_dir = os.path.join(tree, "lib", "luarocks", f"rocks-{lua_abi(lua)}")
+def installed_rocks(luarocks_bin, tree, environment):
+    output = subprocess.check_output(
+        [luarocks_bin, "list", "--porcelain", "--tree=" + tree],
+        env=environment, text=True,
+    )
     rocks = {}
-    for name in sorted(os.listdir(rocks_dir)) if os.path.isdir(rocks_dir) else []:
-        # The tree's manifest file lies beside the rock directories.
-        if not os.path.isdir(os.path.join(rocks_dir, name)):
-            continue
-        versions = sorted(os.listdir(os.path.join(rocks_dir, name)))
-        if versions:
-            rocks[name] = versions[-1]
+    for line in output.splitlines():
+        fields = line.split("\t")
+        if len(fields) >= 2:
+            rocks[fields[0]] = fields[1]
     return rocks
 
 
@@ -886,13 +893,13 @@ def lock_run(argv, update):
         if subprocess.call([luarocks_bin, "make", rockspec], cwd=work, env=env) != 0:
             fail(f"`luarocks make {rockspec}` failed in the lock run")
         info["outputs"] = installed_outputs(
-            lua_bin, os.path.join(state, "tree"), opts["lua"], info["package"], info["version"]
+            lua_bin, os.path.join(state, "tree"), info["package"], info["version"], luarocks_bin, env
         )
     if update is not None:
         # The resolution of `luarocks make`: every rock it installed but the
         # project's own, before the test dependencies join the tree.
         resolved = {
-            n: v for n, v in installed_rocks(os.path.join(state, "tree"), opts["lua"]).items() if n not in own_packages
+            n: v for n, v in installed_rocks(luarocks_bin, os.path.join(state, "tree"), env).items() if n not in own_packages
         }
         target = tool_lock_given or os.path.join(root(), "luarocks.lock")
         os.makedirs(os.path.dirname(target), exist_ok=True)

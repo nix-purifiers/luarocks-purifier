@@ -49,6 +49,13 @@ Linux x86_64 and ARM CI run each point. These are exact runtime/manager
 pairs; they do not establish every release between them or older LuaRocks
 APIs. Lua versions before 5.1 and other LuaRocks releases need separate work.
 
+Metadata discovery asks the selected native manager for its rock directory and
+installed-rock list. A separate regression exercises capture, repeated capture
+and update against the historically packaged LuaRocks 2.2.0-rc1 source (whose
+native version reports 2.2.0), plus current LuaRocks. That regression does not
+establish an old-manager dependency graph, offline/pure builds or publication;
+those need separate SDK propagation and lifecycle evidence.
+
 ## Development loop
 
 LuaRocks has no plugin mechanism, so luarocks-purifier is a command that
