@@ -30,6 +30,7 @@ in
     // {
       luarocks-purifier = base.luarocks-purifier.overrideScope (
         _: super: {
+          luaSDKs = import ../../nix/lib/lua-sdks.nix { pkgs = final; };
           cli = super.cli.override { inherit purifierFlake; };
           buildLuarocksProject = super.buildLuarocksProject.override { inherit (closure-lib) purifier; };
         }

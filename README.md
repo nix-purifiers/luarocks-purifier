@@ -49,12 +49,32 @@ Linux x86_64 and ARM CI run each point. These are exact runtime/manager
 pairs; they do not establish every release between them or older LuaRocks
 APIs. Lua versions before 5.1 and other LuaRocks releases need separate work.
 
-Metadata discovery asks the selected native manager for its rock directory and
-installed-rock list. A separate regression exercises capture, repeated capture
-and update against the historically packaged LuaRocks 2.2.0-rc1 source (whose
-native version reports 2.2.0), plus current LuaRocks. That regression does not
-establish an old-manager dependency graph, offline/pure builds or publication;
-those need separate SDK propagation and lifecycle evidence.
+Select a project SDK through the shared scope so development commands,
+cache construction, sandboxed builds and publication use the same pair:
+
+```nix
+scope = pkgs.luarocks-purifier.overrideScope (_: previous: {
+  luaSDKs = previous.luaSDKs // {
+    "5.1" = { lua = projectLua; luarocks = projectLuaRocks; };
+  };
+});
+# scope.cli and scope.buildLuarocksProject share this selection.
+```
+
+Keys name the project's Lua ABI (or `luajit`). Registered SDK keys are accepted
+by `--lua`; a new SDK need not be added to the purifier's default package set.
+The chosen manager must be configured for that ABI. Original runtime and manager
+recipes survive serialization and ordinary Nix closure copying, including
+selected outputs, without building the SDK during evaluation.
+
+The historical manager regression uses LuaRocks 2.2.0-rc1 source, whose native
+version reports 2.2.0, its Lua 5.1.5 host and a separate Lua 5.1.5 project runtime,
+with the pure Lua dkjson 2.11 dependency required by its uploader. On x86_64 Linux
+in the C locale it exercises native dependency capture, repeated capture/update,
+offline make and a Lua test script loading a compiled C module, sandboxed build
+and source rock, native upload byte equality, and ordinary downstream install
+and compiled execution. LuaRocks 2 has no `test` command; this point runs the Lua
+script directly. Other manager releases and ABI pairs need their own evidence.
 
 ## Development loop
 
