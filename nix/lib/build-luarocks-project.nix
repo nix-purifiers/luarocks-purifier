@@ -284,10 +284,18 @@ let
         # The directory LuaRocks unpacks the archive into: source.dir, or
         # the archive name without its extensions, as LuaRocks deduces it.
         dir =
-          s.dir or (builtins.head (
-            builtins.match "(.*)\\.(tar\\.gz|tgz|tar\\.bz2|tbz2|tar\\.xz|txz|tar|zip|gz|bz2)" basename
-            ++ [ basename ]
-          ));
+          s.dir or (lib.removeSuffix (lib.findFirst (suffix: lib.hasSuffix suffix basename) "" [
+            ".tar.gz"
+            ".tgz"
+            ".tar.bz2"
+            ".tbz2"
+            ".tar.xz"
+            ".txz"
+            ".tar"
+            ".zip"
+            ".gz"
+            ".bz2"
+          ]) basename);
         # The locked download of an archive pinned by md5, which the source
         # rock holds: the lock run downloads it when it exists.
         archive = if s ? md5 then lib.findFirst (d: d.url == url) null lock.otherFiles else null;
