@@ -47,12 +47,16 @@ class CurlRequest(unittest.TestCase):
         args = ["-f", "-L", "--user-agent", "LuaRocks/3.13.0 x via curl", "https://luarocks.org/a-1.0-1.rockspec", "--output", "/t/a"]
         self.assertEqual(cli.curl_request(args), ("https://luarocks.org/a-1.0-1.rockspec", "/t/a"))
 
+    def test_named_output_forms(self):
+        for flags in (["-o", "/t/a"], ["-o/t/a"], ["--output=/t/a"]):
+            self.assertEqual(cli.curl_request(["https://x.org/a", *flags]), ("https://x.org/a", "/t/a"))
+
     def test_cached_download(self):
         args = ["-f", "-L", "-R", "-z", "/t/m.zip", "https://luarocks.org/manifest-5.4.zip", "--output", "/t/m.zip"]
         self.assertEqual(cli.curl_request(args), ("https://luarocks.org/manifest-5.4.zip", "/t/m.zip"))
 
     def test_no_output(self):
-        fails_with(self, "unexpected curl arguments", cli.curl_request, ["https://x.org/a"])
+        self.assertEqual(cli.curl_request(["https://x.org/a"]), ("https://x.org/a", None))
 
 
 class GitUrls(unittest.TestCase):

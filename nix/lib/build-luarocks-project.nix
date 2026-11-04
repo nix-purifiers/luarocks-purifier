@@ -53,6 +53,7 @@
   # The package set, from which the lockfile names C libraries and the Lua
   # of the build (see lua.nix).
   pkgs,
+  luaSDKs ? import ./lua-sdks.nix { inherit pkgs; },
   callPackage,
   runCommand,
   linkFarm,
@@ -95,6 +96,7 @@ let
   cache = callPackage ./cache.nix {
     projectSource = cleanSource;
     inherit
+      luaSDKs
       lockFile
       luarocksLock
       externalDeps
@@ -113,7 +115,7 @@ let
       ;
   };
   inherit (cache) lock luarocks externals;
-  lua = (import ./lua.nix { inherit pkgs; }).${lock.lua};
+  lua = luaSDKs.${lock.lua}.lua;
   abi = lock.luaAbi;
 
   # The project source, without the files of a local run and without the

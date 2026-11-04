@@ -20,6 +20,7 @@
 {
   lib,
   pkgs,
+  luaSDKs ? import ./lua-sdks.nix { inherit pkgs; },
   runCommand,
   writeText,
   symlinkJoin,
@@ -74,7 +75,7 @@ let
     }
     // fetchers
   );
-  luarocks = (import ./lua.nix { inherit pkgs; }).${lock.lua}.pkgs.luarocks;
+  luarocks = luaSDKs.${lock.lua}.luarocks;
 
   # The downloads of the lock in memory for this system, which are all of
   # them: every rock the lock run locks is platform-neutral.

@@ -146,7 +146,17 @@ def not_locked(what):
 def curl_request(args):
     url = next((a for a in args if re.match(r"^(https?|ftp|file)://", a)), None)
     output = args[args.index("--output") + 1] if "--output" in args else None
-    if url is None or output is None:
+    if output is None:
+        for index, arg in enumerate(args):
+            if arg == "-o" and index + 1 < len(args):
+                output = args[index + 1]
+            elif arg.startswith("--output="):
+                output = arg.split("=", 1)[1]
+            elif arg.startswith("-o") and len(arg) > 2:
+                output = arg[2:]
+    if output is None and any(arg in ("-O", "--remote-name", "--remote-name-all") for arg in args):
+        fail(f"unexpected curl remote-name arguments from LuaRocks: {args}")
+    if url is None:
         fail(f"unexpected curl arguments from LuaRocks: {args}")
     return url, output
 
@@ -160,6 +170,20 @@ def tool_curl(args):
     url, output = curl_request(args)
     mode = os.environ.get("LUAROCKS_PURIFIER_MODE")
     if mode == "record":
+        if output is None:
+            # LuaRocks 2 redirects curl's stdout instead of using --output.
+            # Spool bytes on disk so large source archives do not fill RAM.
+            with tempfile.NamedTemporaryFile() as download:
+                status = subprocess.call(["curl"] + args, stdout=download)
+                download.seek(0)
+                shutil.copyfileobj(download, sys.stdout.buffer)
+                if status == 0:
+                    store = os.path.join(os.environ["LUAROCKS_PURIFIER_DOWNLOADS"], short_hash(url))
+                    os.makedirs(store, exist_ok=True)
+                    kept = os.path.join(store, os.path.basename(url.split("?", 1)[0]) or "download")
+                    shutil.copyfile(download.name, kept)
+                    log_event({"kind": "file", "url": url, "file": kept, "hash": sri_file(kept)})
+            return status
         status = subprocess.call(["curl"] + args)
         if status == 0 and os.path.isfile(output):
             store = os.path.join(os.environ["LUAROCKS_PURIFIER_DOWNLOADS"], short_hash(url))
@@ -168,10 +192,16 @@ def tool_curl(args):
             shutil.copyfile(output, kept)
             log_event({"kind": "file", "url": url, "file": kept, "hash": sri_file(kept)})
         return status
+    def deliver(path):
+        if output is None:
+            with open(path, "rb") as source:
+                shutil.copyfileobj(source, sys.stdout.buffer)
+        else:
+            shutil.copyfile(path, output)
+            os.chmod(output, 0o644)
     for entry in self_sources():
         if entry.get("kind") == "file" and entry["url"] == url:
-            shutil.copyfile(entry["path"], output)
-            os.chmod(output, 0o644)
+            deliver(entry["path"])
             return 0
     files = serve_table("files.json")
     if url not in files:
@@ -180,8 +210,7 @@ def tool_curl(args):
             # server, and this keeps it from searching any other.
             return 22
         not_locked(url)
-    shutil.copyfile(files[url], output)
-    os.chmod(output, 0o644)
+    deliver(files[url])
     return 0
 
 
@@ -368,6 +397,13 @@ def luarocks_packages():
     return json.loads(raw)
 
 
+def selected_sdk(version):
+    packages = luarocks_packages()
+    if version not in packages:
+        fail(f"Lua SDK {version} is not configured; available SDKs: {', '.join(sorted(packages))}")
+    return packages[version]
+
+
 def shim(tool):
     return os.path.join(os.environ["LUAROCKS_PURIFIER_SHIMS"], f"luarocks-purifier-{tool}")
 
@@ -443,8 +479,9 @@ def luarocks_env(lua, config, home, tmp, externals):
             dirs.append(env[var])
         if dirs:
             env[var] = ":".join(dirs)
-    for v in ("5_1", "5_2", "5_3", "5_4", "5_5"):
-        env.pop(f"LUA_INIT_{v}", None)
+    for name in list(env):
+        if re.fullmatch(r"LUA_INIT_[0-9]+_[0-9]+", name):
+            env.pop(name)
     # The luarocks wrapper of nixpkgs adds LuaRocks' own module directories
     # to LUA_PATH. When LUA_PATH was unset, the result lacks the `;;` that
     # stands for Lua's default path, and the commands LuaRocks starts (such
@@ -739,8 +776,9 @@ def lock_options(argv, previous):
                 a, []
             ).append(v)
             if a == "--lua":
-                if v not in LUA_VERSIONS:
-                    fail(f"--lua takes one of {', '.join(LUA_VERSIONS)}")
+                versions = sorted(luarocks_packages()) if os.environ.get("LUAROCKS_PURIFIER_LUAROCKS") else LUA_VERSIONS
+                if v not in versions:
+                    fail(f"--lua takes one of {', '.join(versions)}")
                 opts["lua"] = v
             i += 2
         else:
@@ -841,8 +879,7 @@ def lock_run(argv, update):
                 previous = None
     opts = lock_options(argv, previous if isinstance(previous, dict) else None)
 
-    packages = luarocks_packages()
-    luarocks_pkg = packages[opts["lua"]]
+    luarocks_pkg = selected_sdk(opts["lua"])
     luarocks_bin = os.path.join(luarocks_pkg["luarocks"], "bin", "luarocks")
     lua_bin = luarocks_pkg["lua"]
 
@@ -1043,6 +1080,9 @@ def realize():
             "--argstr",
             "purifierFlake",
             os.environ["LUAROCKS_PURIFIER_LIBRARY"],
+            "--arg",
+            "sdkFile",
+            os.environ["LUAROCKS_PURIFIER_SDKS"],
             "--out-link",
             out_link,
         ],
@@ -1070,7 +1110,7 @@ def current_lock():
 # Runs luarocks offline on the locked files, with lua_modules as the tree,
 # and returns its exit status.
 def run_offline(lock, argv):
-    luarocks_pkg = luarocks_packages()[lock["lua"]]
+    luarocks_pkg = selected_sdk(lock["lua"])
     cache = realize()
     state = os.path.join(root(), STATE_DIR)
     for d in ("home", "tmp", "local-cache"):
@@ -1174,11 +1214,14 @@ def cmd_publish(argv):
             "--argstr",
             "purifierFlake",
             os.environ["LUAROCKS_PURIFIER_LIBRARY"],
+            "--arg",
+            "sdkFile",
+            os.environ["LUAROCKS_PURIFIER_SDKS"],
         ]
     )[0]
     rock_file = os.path.join(release, f"{info['package']}-{info['version']}.src.rock")
     print(f"luarocks-purifier: uploading {rockspec} with {rock_file}", file=sys.stderr)
-    luarocks_pkg = luarocks_packages()[lock["lua"]]
+    luarocks_pkg = selected_sdk(lock["lua"])
     # The user's own LuaRocks configuration with certificate checks on, which
     # LuaRocks leaves off by default (see nix/lib/publish-config.lua).
     # LuaRocks keeps the upload API key in upload_config.lua beside the
@@ -1202,7 +1245,12 @@ def cmd_publish(argv):
         os.remove(link)
     os.symlink(os.path.join(user_dir, "upload_config.lua"), link)
     env = dict(os.environ)
-    env["LUA_INIT"] = "@" + nix_lib("tmpname.lua")
+    env["LUA_INIT"] = "@" + nix_lib("publish.lua")
+    env["LUAROCKS_PURIFIER_RELEASE_ROCK"] = rock_file
+    env["LUAROCKS_PURIFIER_RELEASE_SPEC"] = rockspec
+    for name in list(env):
+        if re.fullmatch(r"LUA_INIT_[0-9]+_[0-9]+", name):
+            env.pop(name)
     env["LUAROCKS_CONFIG"] = config
     os.execve(
         os.path.join(luarocks_pkg["luarocks"], "bin", "luarocks"),
