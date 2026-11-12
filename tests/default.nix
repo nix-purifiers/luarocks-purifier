@@ -33,6 +33,15 @@ let
   # project source stands in for, and an archive pinned by md5 (lib-demo),
   # which the lock holds.
   libProject = build { src = ./fixtures/lib; };
+  # Change an unrelated builder input to force a second real packing build.
+  # Matching bytes must not depend on reusing the first derivation's cache.
+  alternateLibProject =
+    ((pkgs.extend overlay).luarocks-purifier.buildLuarocksProject.override {
+      shims = (pkgs.extend overlay).luarocks-purifier.shims.overrideAttrs {
+        sourceRockReproVariant = "second-build";
+      };
+    })
+      { src = ./fixtures/lib; };
   # vcs: dependencies from Mercurial, Subversion and CVS. Its lockfile is
   # written by hand, and the checkouts come from tests/vcs-checkouts in
   # place of the fetchers, so the check covers how LuaRocks gets each kind
@@ -262,6 +271,24 @@ in
     test -f ${libProject.packages.lib.modules.lib}
     touch $out
   '';
+
+  source-rock-reproducible =
+    assert libProject.release.drvPath != alternateLibProject.release.drvPath;
+    pkgs.runCommand "source-rock-reproducible" { } ''
+      cmp ${libProject.release}/lib-1.0-1.src.rock ${alternateLibProject.release}/lib-1.0-1.src.rock
+      cmp ${libProject.release}/lib-demo-1.0-1.src.rock ${alternateLibProject.release}/lib-demo-1.0-1.src.rock
+      ${pkgs.python3}/bin/python - ${libProject.release}/lib-1.0-1.src.rock ${./fixtures/lib/src/lib.lua} ${libProject.release}/lib-demo-1.0-1.src.rock <<'PYTHON'
+      import hashlib, io, pathlib, sys, tarfile, zipfile
+      with zipfile.ZipFile(sys.argv[1]) as rock:
+          assert all(member.date_time == (1980, 1, 1, 0, 0, 0) for member in rock.infolist())
+          with tarfile.open(fileobj=io.BytesIO(rock.read("lib-1.0.tar.gz"))) as source:
+              assert source.extractfile("lib-1.0/src/lib.lua").read() == pathlib.Path(sys.argv[2]).read_bytes()
+              assert all(member.mtime == 1 and member.uid == 0 and member.gid == 0 for member in source.getmembers())
+      with zipfile.ZipFile(sys.argv[3]) as borrowed:
+          assert hashlib.md5(borrowed.read("0.7.1.zip")).hexdigest() == "3393e3336b47dade24e0f273c6ae4ddb"
+      PYTHON
+      touch $out
+    '';
 
   lib-release = pkgs.runCommand "lib-release" { nativeBuildInputs = [ pkgs.unzip ]; } ''
     unzip -l ${libProject.release}/lib-1.0-1.src.rock | tee lib

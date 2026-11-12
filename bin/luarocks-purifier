@@ -1199,6 +1199,9 @@ def cmd_publish(argv):
     release = nix_build(
         [
             nix_lib("release.nix"),
+            "--argstr",
+            "shimsVersion",
+            os.environ["LUAROCKS_PURIFIER_SHIMS_VERSION"],
             "--arg",
             "src",
             root(),
