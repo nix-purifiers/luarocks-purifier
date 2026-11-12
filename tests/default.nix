@@ -272,6 +272,32 @@ in
     touch $out
   '';
 
+  generated-zip-reproducible =
+    pkgs.runCommand "generated-zip-reproducible"
+      {
+        nativeBuildInputs = [ pkgs.zip ];
+      }
+      ''
+        mkdir first second
+        printf 'source bytes' > first/source.lua
+        printf 'borrowed archive bytes' > first/borrowed.zip
+        cp first/* second/
+        touch -d @315532800 first/*
+        touch -d @946684800 second/*
+        (cd first; zip -q ../first.zip source.lua borrowed.zip)
+        (cd second; zip -q ../second.zip borrowed.zip source.lua)
+        ${pkgs.python3}/bin/python ${../tools/normalize-rock.py} first.zip
+        ${pkgs.python3}/bin/python ${../tools/normalize-rock.py} second.zip
+        cmp first.zip second.zip
+        ${pkgs.python3}/bin/python - <<'PYTHON'
+        import pathlib, zipfile
+        with zipfile.ZipFile("first.zip") as archive:
+            for name in ("source.lua", "borrowed.zip"):
+                assert archive.read(name) == pathlib.Path("first", name).read_bytes()
+        PYTHON
+        touch $out
+      '';
+
   source-rock-reproducible =
     assert libProject.release.drvPath != alternateLibProject.release.drvPath;
     pkgs.runCommand "source-rock-reproducible" { } ''

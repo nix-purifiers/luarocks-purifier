@@ -352,7 +352,10 @@ let
         find "$TMPDIR/self-archive/${r.dir}" -exec touch -h -d @315532800 {} +
         archive="$TMPDIR/${r.basename}"
         case ${lib.escapeShellArg r.basename} in
-          *.zip) (cd "$TMPDIR/self-archive" && zip -qr -X "$archive" ${lib.escapeShellArg r.dir}) ;;
+          *.zip)
+            (cd "$TMPDIR/self-archive" && zip -qr -X "$archive" ${lib.escapeShellArg r.dir})
+            ${python3}/bin/python ${../../tools/normalize-rock.py} "$archive"
+            ;;
           *.tar.bz2|*.tbz2) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cjf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
           *.tar.xz|*.txz) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cJf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
           *) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -czf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
