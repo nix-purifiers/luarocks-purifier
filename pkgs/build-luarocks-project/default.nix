@@ -53,7 +53,7 @@
   # The package set, from which the lockfile names C libraries and the Lua
   # of the build (see lua.nix).
   pkgs,
-  luaSDKs ? import ./lua-sdks.nix { inherit pkgs; },
+  luaSDKs ? import ../lua-sdks { inherit pkgs; },
   callPackage,
   runCommand,
   linkFarm,
@@ -210,7 +210,7 @@ let
     }
     export HOME=$TMPDIR/home
     mkdir -p "$HOME"
-    export LUA_INIT=@${./tmpname.lua}
+    export LUA_INIT=@${../cli/tmpname.lua}
     export LUAROCKS_PURIFIER_MODE=serve
     export LUAROCKS_PURIFIER_CACHE=${cache}
   '';
@@ -354,7 +354,7 @@ let
         case ${lib.escapeShellArg r.basename} in
           *.zip)
             (cd "$TMPDIR/self-archive" && zip -qr -X "$archive" ${lib.escapeShellArg r.dir})
-            ${python3}/bin/python ${../../tools/normalize-rock.py} "$archive"
+            ${python3}/bin/python ${./normalize-rock.py} "$archive"
             ;;
           *.tar.bz2|*.tbz2) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cjf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
           *.tar.xz|*.txz) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cJf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
@@ -390,7 +390,7 @@ let
         export LUAROCKS_CONFIG=$TMPDIR/config.lua
         ${selfSetup info}
         luarocks pack ${lib.escapeShellArg info.file}
-        ${python3}/bin/python ${../../tools/normalize-rock.py} ${lib.escapeShellArg "${info.package}-${info.version}.src.rock"}
+        ${python3}/bin/python ${./normalize-rock.py} ${lib.escapeShellArg "${info.package}-${info.version}.src.rock"}
         runHook postBuild
       '';
       installPhase = ''

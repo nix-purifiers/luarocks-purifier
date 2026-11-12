@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='lua-sdk-native-') as temporary:
     root = base/'project'
     root.mkdir()
     env.update(HOME=str(base/'home'), XDG_CONFIG_HOME=str(base/'home/.config'),
-               LUA_INIT='@'+str(flake/'nix/lib/tmpname.lua'))
+               LUA_INIT='@'+str(flake/'pkgs/cli/tmpname.lua'))
     Path(env['HOME']).mkdir()
     native_manager = run([manager, '--version'], base, env, True).splitlines()[0].rsplit(' ', 1)[-1]
     runtime_version = subprocess.run([lua, '-v'], env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True).stdout.strip()

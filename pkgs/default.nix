@@ -14,7 +14,7 @@ rec {
   shims = callPackage ./shims { };
   # The luarocks-purifier command.
   cli = callPackage ./cli { inherit version shims; };
-  # The builder (nix/lib/build-luarocks-project.nix), which fetches with the
+  # The builder (pkgs/build-luarocks-project/default.nix), which fetches with the
   # shared library.
-  buildLuarocksProject = callPackage ../nix/lib/build-luarocks-project.nix { };
+  buildLuarocksProject = callPackage ./build-luarocks-project { };
 }

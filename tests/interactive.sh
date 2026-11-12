@@ -335,7 +335,7 @@ dependencies = { $dependencies }
 build = { type = "builtin", modules = { vcs = "vcs.lua" } }
 EOF
   echo "return {$requires }" > "$project/vcs.lua"
-  LUA_INIT=@$repo/nix/lib/tmpname.lua luarocks-admin make_manifest "$project/rocks"
+  LUA_INIT=@$repo/pkgs/cli/tmpname.lua luarocks-admin make_manifest "$project/rocks"
   (
     cd "$project"
     "$cli" lock --only-server ./rocks
@@ -374,7 +374,7 @@ source = { url = "git+https://example.org/uses-sscm.git" }
 dependencies = { "lua >= 5.1", "sscmrock == 1.0" }
 build = { type = "builtin", modules = {} }
 EOF
-    LUA_INIT=@$repo/nix/lib/tmpname.lua luarocks-admin make_manifest "$sscm/rocks"
+    LUA_INIT=@$repo/pkgs/cli/tmpname.lua luarocks-admin make_manifest "$sscm/rocks"
     cd "$sscm"
     if "$cli" lock --only-server ./rocks > sscm.log 2>&1; then
       echo "the lock run accepted a Surround SCM source"

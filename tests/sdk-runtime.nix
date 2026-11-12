@@ -30,7 +30,7 @@ let
   };
 in
 {
-  carrier = pkgs.writeText "sdk-matrix.nix" (import ../nix/lib/sdk-matrix-expression.nix matrix);
+  carrier = pkgs.writeText "sdk-matrix.nix" (import ../pkgs/cli/sdk-matrix-expression.nix matrix);
   descriptors = map builtins.unsafeDiscardStringContext [
     runtime.drvPath
     manager.drvPath
