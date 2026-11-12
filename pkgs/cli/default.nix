@@ -10,7 +10,7 @@
 {
   lib,
   pkgs,
-  luaSDKs ? import ../../nix/lib/lua-sdks.nix { inherit pkgs; },
+  luaSDKs ? import ../lua-sdks { inherit pkgs; },
   writeText,
   stdenvNoCC,
   makeWrapper,
@@ -44,10 +44,8 @@ let
     root = ../..;
     fileset = lib.fileset.unions [
       ../../bin
-      ../../nix
-      ../../tools
-      ../../pkgs/version.nix
-      ../../pkgs/shims
+      ../../lib-overlays/default
+      ../../pkgs
     ];
   };
   luarocks = lib.mapAttrs (name: sdk: {
@@ -56,9 +54,7 @@ let
     version =
       sdk.luarocksVersion or (sdk.luarocks.version or (builtins.parseDrvName sdk.luarocks.name).version);
   }) luaSDKs;
-  sdkReference = writeText "lua-project-sdks.nix" (
-    import ../../nix/lib/sdk-matrix-expression.nix luaSDKs
-  );
+  sdkReference = writeText "lua-project-sdks.nix" (import ./sdk-matrix-expression.nix luaSDKs);
 in
 stdenvNoCC.mkDerivation {
   pname = "luarocks-purifier";
@@ -75,7 +71,7 @@ stdenvNoCC.mkDerivation {
     makeWrapper ${python3Minimal}/bin/python3 "$out/bin/luarocks-purifier" \
       --add-flags "${source}/bin/luarocks-purifier" \
       --set LUAROCKS_PURIFIER_SDKS ${sdkReference} \
-      --set LUAROCKS_PURIFIER_LIB ${source}/nix/lib \
+      --set LUAROCKS_PURIFIER_LIB ${source}/pkgs/cli \
       --set LUAROCKS_PURIFIER_NIXPKGS ${path} \
       --set LUAROCKS_PURIFIER_SHIMS ${shims}/bin \
       --set LUAROCKS_PURIFIER_SHIMS_VERSION ${lib.escapeShellArg shims.version} \

@@ -17,8 +17,8 @@
 let
   pkgs = import nixpkgs { };
 in
-pkgs.callPackage ./cache.nix {
+pkgs.callPackage ../build-luarocks-project/cache.nix {
   inherit lockFile;
-  luaSDKs = if sdkFile == null then import ./lua-sdks.nix { inherit pkgs; } else import sdkFile;
+  luaSDKs = if sdkFile == null then import ../lua-sdks { inherit pkgs; } else import sdkFile;
   inherit ((builtins.getFlake purifierFlake).lib) purifier;
 }

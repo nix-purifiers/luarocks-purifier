@@ -18,7 +18,7 @@
 let
   inherit (pkgs) lib;
   build = (pkgs.extend overlay).luarocks-purifier.buildLuarocksProject;
-  contentHash = import ../nix/lib/content-hash.nix;
+  contentHash = import ../lib-overlays/default/content-hash.nix;
 
   # app: a rock with a command, Lua modules, a C dependency (lpeg), a git
   # dependency that links a C library from nixpkgs (lua-zlib with zlib), a
@@ -240,11 +240,11 @@ in
         ];
       }
       ''
-        export HOME=$TMPDIR/home LUA_INIT=@${../nix/lib/tmpname.lua}
+        export HOME=$TMPDIR/home LUA_INIT=@${../pkgs/cli/tmpname.lua}
         mkdir -p $HOME
         # luarocks upload writes upload_config.lua beside the configuration,
         # which a build outside the sandbox could then write into /nix/store.
-        cp ${../nix/lib/publish-config.lua} $HOME/config.lua
+        cp ${../pkgs/cli/publish-config.lua} $HOME/config.lua
         export LUAROCKS_CONFIG=$HOME/config.lua
         python3 ${./fake-luarocks-server.py} $TMPDIR/uploads $TMPDIR/port &
         # Darwin builds have no PID namespace, so a server left running
@@ -286,8 +286,8 @@ in
         touch -d @946684800 second/*
         (cd first; zip -q ../first.zip source.lua borrowed.zip)
         (cd second; zip -q ../second.zip borrowed.zip source.lua)
-        ${pkgs.python3}/bin/python ${../tools/normalize-rock.py} first.zip
-        ${pkgs.python3}/bin/python ${../tools/normalize-rock.py} second.zip
+        ${pkgs.python3}/bin/python ${../pkgs/build-luarocks-project/normalize-rock.py} first.zip
+        ${pkgs.python3}/bin/python ${../pkgs/build-luarocks-project/normalize-rock.py} second.zip
         cmp first.zip second.zip
         ${pkgs.python3}/bin/python - <<'PYTHON'
         import pathlib, zipfile

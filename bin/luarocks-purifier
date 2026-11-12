@@ -463,7 +463,7 @@ def luarocks_env(lua, config, home, tmp, externals):
             "HOME": home,
             "TMPDIR": tmp,
             "LUAROCKS_CONFIG": config,
-            # nix/lib/tmpname.lua makes os.tmpname honour TMPDIR.
+            # pkgs/cli/tmpname.lua makes os.tmpname honour TMPDIR.
             "LUA_INIT": "@" + nix_lib("tmpname.lua"),
         }
     )
@@ -507,7 +507,7 @@ def read_lock():
 
 # The content hash of a lockfile: the SHA-256, as an SRI hash, of the
 # lockfile without its contentHash field, as JSON with sorted keys and no
-# whitespace, which nix/lib/content-hash.nix computes with builtins.toJSON.
+# whitespace, which lib-overlays/default/content-hash.nix computes with builtins.toJSON.
 def content_hash(lock):
     rest = {k: v for k, v in lock.items() if k != "contentHash"}
     text = json.dumps(rest, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -515,7 +515,7 @@ def content_hash(lock):
 
 
 # What is wrong with the lockfile for the project, as the message that
-# names the command that fixes it, or None. nix/lib/lock-problem.nix makes
+# names the command that fixes it, or None. lib-overlays/default/lock-problem.nix makes
 # the same checks at evaluation.
 def lock_problem(lock):
     path = lock_path()
@@ -563,7 +563,7 @@ def effective_tool_lock():
 # The hash of the files that decide what the lock holds: the rockspecs and
 # luarocks.lock, LuaRocks' own lockfile. It is the SHA-256 of one line per
 # file, "<file> <SHA-256 of the file in hex>\n", in file name order, which
-# nix/lib/lock-problem.nix computes the same way to find a stale lockfile.
+# lib-overlays/default/lock-problem.nix computes the same way to find a stale lockfile.
 # `luarocks_lock` is the path of luarocks.lock, or None to use the copy in
 # `base`, when there is one.
 def definition_hash(rockspecs, base=".", luarocks_lock=None):
@@ -609,7 +609,7 @@ def external_dirs(attrs):
 
 
 # The C library of the nixpkgs compiler, which goes last in LuaRocks'
-# external_deps_dirs (see nix/lib/libc.nix).
+# external_deps_dirs (see pkgs/libc/default.nix).
 def libc_dir():
     return nix_build(
         [
@@ -620,7 +620,7 @@ def libc_dir():
             os.environ["LUAROCKS_PURIFIER_NIXPKGS"],
             "--arg",
             "libc",
-            nix_lib("libc.nix"),
+            nix_lib("../libc/default.nix"),
         ]
     )[0]
 
@@ -1226,7 +1226,7 @@ def cmd_publish(argv):
     print(f"luarocks-purifier: uploading {rockspec} with {rock_file}", file=sys.stderr)
     luarocks_pkg = selected_sdk(lock["lua"])
     # The user's own LuaRocks configuration with certificate checks on, which
-    # LuaRocks leaves off by default (see nix/lib/publish-config.lua).
+    # LuaRocks leaves off by default (see pkgs/cli/publish-config.lua).
     # LuaRocks keeps the upload API key in upload_config.lua beside the
     # configuration, so that file links to the user's own.
     publish_dir = os.path.join(root(), STATE_DIR, "publish")

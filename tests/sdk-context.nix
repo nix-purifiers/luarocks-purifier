@@ -24,7 +24,7 @@ let
       luaExecutable = "lua";
     };
   };
-  expression = import ../nix/lib/sdk-matrix-expression.nix original;
+  expression = import ../pkgs/cli/sdk-matrix-expression.nix original;
   restored = import (
     builtins.toFile "restored-lua-sdk-matrix.nix" (builtins.unsafeDiscardStringContext expression)
   );

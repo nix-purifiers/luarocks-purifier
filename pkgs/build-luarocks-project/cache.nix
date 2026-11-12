@@ -20,7 +20,7 @@
 {
   lib,
   pkgs,
-  luaSDKs ? import ./lua-sdks.nix { inherit pkgs; },
+  luaSDKs ? import ../lua-sdks { inherit pkgs; },
   runCommand,
   writeText,
   symlinkJoin,
@@ -54,7 +54,7 @@
   externalDeps ? null,
 }:
 let
-  lock = import ./lock.nix {
+  lock = import ../../lib-overlays/default/lock.nix {
     inherit lockFile luarocksLock purifier;
     src = projectSource;
   };
@@ -139,7 +139,7 @@ let
     }
   ) externalPackages;
 
-  libc = pkgs.callPackage ./libc.nix { };
+  libc = pkgs.callPackage ../libc { };
 in
 runCommand "luarocks-purifier-cache"
   {
@@ -167,7 +167,7 @@ runCommand "luarocks-purifier-cache"
       cp ${fetched.${d.path}} $out/server/${lib.escapeShellArg (baseNameOf d.path)}
     '') lock.serverFiles}
     chmod -R u+w $out/server
-    export HOME=$TMPDIR LUA_INIT=@${./tmpname.lua}
+    export HOME=$TMPDIR LUA_INIT=@${../cli/tmpname.lua}
     luarocks-admin make_manifest $out/server
     cp $filesJson $out/files.json
     cp $checkoutsJson $out/checkouts.json

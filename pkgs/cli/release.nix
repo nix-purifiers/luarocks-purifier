@@ -18,9 +18,9 @@
 }:
 let
   pkgs = import nixpkgs { };
-  buildLuarocksProject = pkgs.callPackage ./build-luarocks-project.nix {
-    luaSDKs = if sdkFile == null then import ./lua-sdks.nix { inherit pkgs; } else import sdkFile;
-    shims = pkgs.callPackage ../../pkgs/shims (
+  buildLuarocksProject = pkgs.callPackage ../build-luarocks-project {
+    luaSDKs = if sdkFile == null then import ../lua-sdks { inherit pkgs; } else import sdkFile;
+    shims = pkgs.callPackage ../shims (
       pkgs.lib.optionalAttrs (shimsVersion != null) { version = shimsVersion; }
     );
     inherit ((builtins.getFlake purifierFlake).lib) purifier;
