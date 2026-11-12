@@ -13,12 +13,16 @@
   # reference to its locked source.
   purifierFlake,
   sdkFile ? null,
+  # Keep the selected shim identity when this file runs from a filtered source.
+  shimsVersion ? null,
 }:
 let
   pkgs = import nixpkgs { };
   buildLuarocksProject = pkgs.callPackage ./build-luarocks-project.nix {
     luaSDKs = if sdkFile == null then import ./lua-sdks.nix { inherit pkgs; } else import sdkFile;
-    shims = pkgs.callPackage ../../pkgs/shims { };
+    shims = pkgs.callPackage ../../pkgs/shims (
+      pkgs.lib.optionalAttrs (shimsVersion != null) { version = shimsVersion; }
+    );
     inherit ((builtins.getFlake purifierFlake).lib) purifier;
   };
 in

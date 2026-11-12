@@ -11,10 +11,11 @@
   stdenvNoCC,
   makeWrapper,
   python3Minimal,
+  version ? import ../version.nix,
 }:
 stdenvNoCC.mkDerivation {
   pname = "luarocks-purifier-shims";
-  version = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile ../../version.txt);
+  inherit version;
   src = ../../bin;
   nativeBuildInputs = [ makeWrapper ];
   dontConfigure = true;

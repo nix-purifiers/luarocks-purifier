@@ -7,7 +7,7 @@
 # to the package set as `pkgs.luarocks-purifier`.
 { callPackage, ... }:
 let
-  version = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile ../version.txt);
+  version = import ./version.nix;
 in
 rec {
   # The tool stand-ins LuaRocks runs in the lock run and offline.

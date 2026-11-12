@@ -347,12 +347,18 @@ let
       ''
         mkdir -p "$TMPDIR/self-archive/${r.dir}"
         cp -r . "$TMPDIR/self-archive/${r.dir}/"
+        # This tree is generated from the immutable project source. Normalize
+        # only its metadata; already captured source archives remain untouched.
+        find "$TMPDIR/self-archive/${r.dir}" -exec touch -h -d @315532800 {} +
         archive="$TMPDIR/${r.basename}"
         case ${lib.escapeShellArg r.basename} in
-          *.zip) (cd "$TMPDIR/self-archive" && zip -qr -X "$archive" ${lib.escapeShellArg r.dir}) ;;
-          *.tar.bz2|*.tbz2) tar -cjf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
-          *.tar.xz|*.txz) tar -cJf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
-          *) tar -czf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
+          *.zip)
+            (cd "$TMPDIR/self-archive" && zip -qr -X "$archive" ${lib.escapeShellArg r.dir})
+            ${python3}/bin/python ${../../tools/normalize-rock.py} "$archive"
+            ;;
+          *.tar.bz2|*.tbz2) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cjf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
+          *.tar.xz|*.txz) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -cJf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
+          *) tar --sort=name --mtime=@1 --owner=0 --group=0 --numeric-owner -czf "$archive" -C "$TMPDIR/self-archive" ${lib.escapeShellArg r.dir} ;;
         esac
         LUAROCKS_PURIFIER_SELF=$(printf '[{"kind": "file", "url": %s, "path": "%s"}]' ${lib.escapeShellArg (builtins.toJSON r.url)} "$archive")
         export LUAROCKS_PURIFIER_SELF
@@ -384,6 +390,7 @@ let
         export LUAROCKS_CONFIG=$TMPDIR/config.lua
         ${selfSetup info}
         luarocks pack ${lib.escapeShellArg info.file}
+        ${python3}/bin/python ${../../tools/normalize-rock.py} ${lib.escapeShellArg "${info.package}-${info.version}.src.rock"}
         runHook postBuild
       '';
       installPhase = ''

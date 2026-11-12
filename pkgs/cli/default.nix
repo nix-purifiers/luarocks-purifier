@@ -45,8 +45,9 @@ let
     fileset = lib.fileset.unions [
       ../../bin
       ../../nix
+      ../../tools
+      ../../pkgs/version.nix
       ../../pkgs/shims
-      ../../version.txt
     ];
   };
   luarocks = lib.mapAttrs (name: sdk: {
@@ -77,6 +78,7 @@ stdenvNoCC.mkDerivation {
       --set LUAROCKS_PURIFIER_LIB ${source}/nix/lib \
       --set LUAROCKS_PURIFIER_NIXPKGS ${path} \
       --set LUAROCKS_PURIFIER_SHIMS ${shims}/bin \
+      --set LUAROCKS_PURIFIER_SHIMS_VERSION ${lib.escapeShellArg shims.version} \
       --set LUAROCKS_PURIFIER_LIBRARY ${lib.escapeShellArg purifierFlake} \
       --set LUAROCKS_PURIFIER_PACKAGE "$out" \
       --set LUAROCKS_PURIFIER_LUAROCKS ${lib.escapeShellArg (builtins.toJSON luarocks)} \
