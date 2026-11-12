@@ -14,7 +14,7 @@
 }:
 stdenvNoCC.mkDerivation {
   pname = "luarocks-purifier-shims";
-  version = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile ../../version.txt);
+  version = import ../version.nix;
   src = ../../bin;
   nativeBuildInputs = [ makeWrapper ];
   dontConfigure = true;

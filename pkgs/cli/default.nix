@@ -45,8 +45,8 @@ let
     fileset = lib.fileset.unions [
       ../../bin
       ../../nix
+      ../../pkgs/version.nix
       ../../pkgs/shims
-      ../../version.txt
     ];
   };
   luarocks = lib.mapAttrs (name: sdk: {
